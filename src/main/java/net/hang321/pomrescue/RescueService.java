@@ -1,8 +1,10 @@
 package net.hang321.pomrescue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,8 +26,38 @@ public class RescueService {
 
 	void rescue() {
 		Map<String, String> sha1map = parseSha1File();
+		logger.debug("sha1map: {}", sha1map);
 
-		logger.info("sha1map: {}", sha1map);
+		ObjectMapper mapper = new ObjectMapper();
+		RestTemplate restTemplate = new RestTemplate();
+		String mavenUrl = "http://search.maven.org/solrsearch/select?q=1:\"";
+		String mavenUrlSuffix = "\"&rows=20&wt=json";
+
+		for (Map.Entry<String, String> entry : sha1map.entrySet()) {
+
+			ResponseEntity<String> response
+					= restTemplate.getForEntity(mavenUrl + entry.getValue() + mavenUrlSuffix, String.class);
+
+			logger.trace("{}", response.getBody());
+
+			JsonNode root = null;
+			try {
+				root = mapper.readTree(response.getBody());
+				JsonNode numFound = root.path("response").path("numFound");
+				if (numFound.intValue() == 1) {
+					JsonNode docNode = root.path("response").path("docs").get(0);
+					// logger.debug("id: {}", docNode.get("id"));
+
+					String groupId = docNode.get("g").asText();
+					String artifactId = docNode.get("a").asText();
+					String version =docNode.get("v").asText();
+					logger.info("{}:{}:{}", groupId, artifactId, version);
+				}
+
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	/**
