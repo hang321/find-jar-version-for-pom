@@ -2,17 +2,24 @@ package net.hang321.pomrescue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
@@ -33,6 +40,16 @@ public class RescueService {
 		String mavenUrl = "http://search.maven.org/solrsearch/select?q=1:\"";
 		String mavenUrlSuffix = "\"&rows=20&wt=json";
 
+		Model model = new Model();
+		List<Dependency> dependencies = new ArrayList<>();
+
+		// set optional info here
+		model.setModelVersion("4.0.0");
+		model.setGroupId("net.hang321");
+		model.setArtifactId("pom-rescue");
+		model.setVersion("1.0.0-SNAPSHOT");
+
+
 		for (Map.Entry<String, String> entry : sha1map.entrySet()) {
 
 			ResponseEntity<String> response
@@ -52,11 +69,21 @@ public class RescueService {
 					String artifactId = docNode.get("a").asText();
 					String version =docNode.get("v").asText();
 					logger.info("{}:{}:{}", groupId, artifactId, version);
+
+					Dependency dependency = new Dependency();
+					dependency.setGroupId(groupId);
+					dependency.setArtifactId(artifactId);
+					dependency.setVersion(version);
+
+					dependencies.add(dependency);
 				}
 
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+
+			model.setDependencies(dependencies);
+			writeMavenModel(model);
 		}
 	}
 
@@ -80,5 +107,19 @@ public class RescueService {
 			e.printStackTrace();
 		}
 		return map;
+	}
+
+	private void writeMavenModel(Model model) {
+
+		MavenXpp3Writer writer = new MavenXpp3Writer();
+		String baseDir = getClass().getProtectionDomain().getCodeSource().getLocation().getFile();
+
+		try {
+			writer.write(new FileOutputStream(new File(baseDir, "/new-pom.xml")), model);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 }
