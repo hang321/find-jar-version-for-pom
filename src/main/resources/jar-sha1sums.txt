@@ -1,0 +1,2 @@
+8092b1ba2d4929f2ec27e58cd240502afdd6a9a7  javacsv-1.0.jar
+159082f4e937a9ce4a459703c7fb64f5e6d2a1ee  spring-1.0.jar
